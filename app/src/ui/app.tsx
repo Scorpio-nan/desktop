@@ -175,12 +175,13 @@ import { PullRequestComment } from './notifications/pull-request-comment'
 import { UnknownAuthors } from './unknown-authors/unknown-authors-dialog'
 import { UnsupportedOSBannerDismissedAtKey } from './banners/os-version-no-longer-supported-banner'
 import { offsetFromNow } from '../lib/offset-from'
-import { getBoolean, getNumber } from '../lib/local-storage'
+import { getNumber } from '../lib/local-storage'
 import { IconPreviewDialog } from './octicons/icon-preview-dialog'
-import { accessibilityBannerDismissed } from './banners/accessibilty-settings-banner'
 import { isCertificateErrorSuppressedFor } from '../lib/suppress-certificate-error'
 import { webUtils } from 'electron'
 import { showTestUI } from './lib/test-ui-components/test-ui-components'
+import { ConfirmCommitFilteredChanges } from './changes/confirm-commit-filtered-changes-dialog'
+import { AboutTestDialog } from './about/about-test-dialog'
 
 const MinuteInMilliseconds = 1000 * 60
 const HourInMilliseconds = MinuteInMilliseconds * 60
@@ -376,13 +377,6 @@ export class App extends React.Component<IAppProps, IAppState> {
     this.setOnOpenBanner()
   }
 
-  private onOpenAccessibilitySettings = () => {
-    this.props.dispatcher.showPopup({
-      type: PopupType.Preferences,
-      initialSelectedTab: PreferencesTab.Accessibility,
-    })
-  }
-
   /**
    * This method sets the app banner on opening the app. The last banner set in
    * this method will be the one shown as only one banner is shown at a time.
@@ -403,14 +397,6 @@ export class App extends React.Component<IAppProps, IAppState> {
         this.setBanner({ type: BannerType.OSVersionNoLongerSupported })
         return
       }
-    }
-
-    if (getBoolean(accessibilityBannerDismissed) !== true) {
-      this.setBanner({
-        type: BannerType.AccessibilitySettingsBanner,
-        onOpenAccessibilitySettings: this.onOpenAccessibilitySettings,
-      })
-      return
     }
 
     this.checkIfThankYouIsInOrder()
@@ -614,7 +600,7 @@ export class App extends React.Component<IAppProps, IAppState> {
 
     if (isMacOSAndNoLongerSupportedByElectron()) {
       log.error(
-        `Can't check for updates on macOS 10.14 or older. Next available update only supports macOS 10.15 and later`
+        `Can't check for updates on macOS 10.15 or older. Next available update only supports macOS 11.0 and later`
       )
       return
     }
@@ -1557,6 +1543,9 @@ export class App extends React.Component<IAppProps, IAppState> {
             }
             confirmForcePush={this.state.askForConfirmationOnForcePush}
             confirmUndoCommit={this.state.askForConfirmationOnUndoCommit}
+            askForConfirmationOnCommitFilteredChanges={
+              this.state.askForConfirmationOnCommitFilteredChanges
+            }
             uncommittedChangesStrategy={this.state.uncommittedChangesStrategy}
             selectedExternalEditor={this.state.selectedExternalEditor}
             useWindowsOpenSSH={this.state.useWindowsOpenSSH}
@@ -1578,6 +1567,7 @@ export class App extends React.Component<IAppProps, IAppState> {
             onEditGlobalGitConfig={this.editGlobalGitConfig}
             underlineLinks={this.state.underlineLinks}
             showDiffCheckMarks={this.state.showDiffCheckMarks}
+            canFilterChanges={this.state.canFilterChanges}
           />
         )
       case PopupType.RepositorySettings: {
@@ -1705,6 +1695,8 @@ export class App extends React.Component<IAppProps, IAppState> {
             onCheckForNonStaggeredUpdates={this.onCheckForNonStaggeredUpdates}
             onShowAcknowledgements={this.showAcknowledgements}
             onShowTermsAndConditions={this.showTermsAndConditions}
+            updateState={this.state.updateState}
+            onQuitAndInstall={this.onQuitAndInstall}
           />
         )
       case PopupType.PublishRepository:
@@ -2482,9 +2474,34 @@ export class App extends React.Component<IAppProps, IAppState> {
           />
         )
       }
+      case PopupType.ConfirmCommitFilteredChanges: {
+        return (
+          <ConfirmCommitFilteredChanges
+            onCommitAnyway={popup.onCommitAnyway}
+            onDismissed={onPopupDismissedFn}
+            showFilesToBeCommitted={popup.showFilesToBeCommitted}
+            setConfirmCommitFilteredChanges={
+              this.setConfirmCommitFilteredChanges
+            }
+          />
+        )
+      }
+      case PopupType.TestAbout:
+        return (
+          <AboutTestDialog
+            key="about"
+            onDismissed={onPopupDismissedFn}
+            onShowAcknowledgements={this.showAcknowledgements}
+            onShowTermsAndConditions={this.showTermsAndConditions}
+          />
+        )
       default:
         return assertNever(popup, `Unknown popup type: ${popup}`)
     }
+  }
+
+  private setConfirmCommitFilteredChanges = (value: boolean) => {
+    this.props.dispatcher.setConfirmCommitFilteredChanges(value)
   }
 
   private getPullRequestState() {
@@ -2578,6 +2595,8 @@ export class App extends React.Component<IAppProps, IAppState> {
   private showTermsAndConditions = () => {
     this.props.dispatcher.showPopup({ type: PopupType.TermsAndConditions })
   }
+
+  private onQuitAndInstall = () => updateStore.quitAndInstallUpdate()
 
   private renderPopups() {
     const popupContent = this.allPopupContent()
@@ -3225,6 +3244,9 @@ export class App extends React.Component<IAppProps, IAppState> {
           askForConfirmationOnCheckoutCommit={
             state.askForConfirmationOnCheckoutCommit
           }
+          askForConfirmationOnCommitFilteredChanges={
+            state.askForConfirmationOnCommitFilteredChanges
+          }
           accounts={state.accounts}
           isExternalEditorAvailable={
             state.useCustomEditor || state.selectedExternalEditor !== null
@@ -3242,6 +3264,7 @@ export class App extends React.Component<IAppProps, IAppState> {
           showCommitLengthWarning={this.state.showCommitLengthWarning}
           onCherryPick={this.startCherryPickWithoutBranch}
           pullRequestSuggestedNextAction={state.pullRequestSuggestedNextAction}
+          canFilterChanges={state.canFilterChanges}
         />
       )
     } else if (selectedState.type === SelectionType.CloningRepository) {

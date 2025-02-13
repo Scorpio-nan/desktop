@@ -137,6 +137,10 @@ export function buildTestMenu() {
           label: 'Octicons',
           click: emit('test-icons'),
         },
+        {
+          label: 'About dialog (test mode)',
+          click: emit('test-about-dialog'),
+        },
       ],
     },
     {
@@ -177,10 +181,6 @@ export function buildTestMenu() {
         {
           label: 'Merge Successful',
           click: emit('test-merge-successful-banner'),
-        },
-        {
-          label: 'Accessibility',
-          click: emit('test-accessibility-banner'),
         },
         {
           label: 'OS Version No Longer Supported',

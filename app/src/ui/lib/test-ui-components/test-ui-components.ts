@@ -42,11 +42,6 @@ export function showTestUI(
   switch (name) {
     case 'boomtown':
       return boomtown()
-    case 'test-accessibility-banner':
-      return dispatcher.setBanner({
-        type: BannerType.AccessibilitySettingsBanner,
-        onOpenAccessibilitySettings: () => {},
-      })
     case 'test-app-error':
       return testAppError()
     case 'test-arm64-banner':
@@ -165,6 +160,8 @@ export function showTestUI(
       return dispatcher.showPopup({ type: PopupType.LFSAttributeMismatch })
     case 'test-upstream-already-exists':
       return showFakeUpstreamAlreadyExists()
+    case 'test-about-dialog':
+      return dispatcher.showPopup({ type: PopupType.TestAbout })
     default:
       return assertNever(name, `Unknown menu event name: ${name}`)
   }
